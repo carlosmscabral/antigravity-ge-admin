@@ -65,7 +65,7 @@ flowchart TD
 | **Native BQ Data Agent Creation** | **MANUAL** | BigQuery Studio UI | Interactive Data Canvas agent creation & A2A card export in GCP Console. |
 | **GCP OAuth 2.0 Credentials** | **MANUAL** | GCP Console (APIs & Services) | Creation of Web Client ID + Secret with Authorized Redirect URIs. |
 | **Gemini Enterprise A2A Import** | **AUTOMATED** | `scripts/03_publish_a2a_agent.sh` | Automated registration of A2A Agent Card via `agents-cli`. |
-| **OAuth Auth Binding in GE Console** | **MANUAL** | Gemini Enterprise UI | Attaching OAuth Client ID & Secret with `access_type=offline`. |
+| **OAuth Auth Binding in GE Console** | **MANUAL** | Gemini Enterprise UI | Attaching OAuth Client ID & Secret with `access_type=offline&prompt=consent`. |
 
 ---
 
@@ -319,7 +319,7 @@ ORDER BY
    - **Auth Type**: `OAuth 2.0 (Authorization Code)`
    - **Client ID**: `<YOUR_GCP_OAUTH_CLIENT_ID>`
    - **Client Secret**: `<YOUR_GCP_OAUTH_CLIENT_SECRET>`
-   - **Authorization Endpoint**: `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline`
+   - **Authorization Endpoint**: `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&prompt=consent`
    - **Token Endpoint**: `https://oauth2.googleapis.com/token`
    - **Scopes**: `https://www.googleapis.com/auth/cloud-platform`
 4. Click **Save & Enable**.
@@ -330,8 +330,8 @@ ORDER BY
 
 | Symptom / Issue | Cause | Exact Resolution |
 | :--- | :--- | :--- |
-| **`The authorization URI must contain 'access_type=offline'`** | Google OAuth requires `access_type=offline` parameter to issue refresh tokens. | Set Authorization Endpoint to `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline`. |
-| **HTTP Error 401: Request is missing required authentication credential** | The agent in Gemini Enterprise is missing OAuth 2.0 credentials configuration. | In Gemini Enterprise Admin Console -> Agents -> Select Agent -> Edit -> Authentication, select **OAuth 2.0 (Authorization Code)** and enter Client ID `<YOUR_GCP_OAUTH_CLIENT_ID>` and Secret `<YOUR_GCP_OAUTH_CLIENT_SECRET>` with Scope `https://www.googleapis.com/auth/cloud-platform` and Authorization Endpoint `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline`. |
+| **`The authorization URI must contain 'access_type=offline'`** | Google OAuth requires `access_type=offline` and `prompt=consent` parameters to issue refresh tokens. | Set Authorization Endpoint to `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&prompt=consent`. |
+| **HTTP Error 401: Request is missing required authentication credential** | The agent in Gemini Enterprise is missing OAuth 2.0 credentials configuration. | In Gemini Enterprise Admin Console -> Agents -> Select Agent -> Edit -> Authentication, select **OAuth 2.0 (Authorization Code)** and enter Client ID `<YOUR_GCP_OAUTH_CLIENT_ID>` and Secret `<YOUR_GCP_OAUTH_CLIENT_SECRET>` with Scope `https://www.googleapis.com/auth/cloud-platform` and Authorization Endpoint `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&prompt=consent`. |
 | **BigQuery log table is empty (`0 rows`)** | Missing IAM role on Cloud Logging Sink Writer SA. | Run `gcloud projects add-iam-policy-binding vibe-cabral --member="serviceAccount:service-280799742875@gcp-sa-logging.iam.gserviceaccount.com" --role="roles/bigquery.dataEditor" --condition=None`. |
 | **Existing logs in Cloud Logging not showing in BigQuery** | Sink only streams *new* logs from time of authorization. | Run `python3 scripts/backfill_logs.py` to backfill existing logs. |
 | **`Invalid JSON Path` error in BigQuery queries** | Using legacy string syntax `JSON_VALUE(labels, '$.user_id')` on native `JSON` column. | Use native dot notation: `JSON_VALUE(labels.user_id)` or `JSON_VALUE(jsonPayload.experience)`. |
