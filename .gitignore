@@ -1,0 +1,37 @@
+# Environment and Secrets
+.env
+*.key
+*.pem
+*secret*.json
+*service-account*.json
+credentials.json
+
+# System & OS Files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+
+# Temporary / Log Files
+*.log
+*.tmp
+/tmp/
+/raw_logs.json
+/formatted_logs.json
+
+# Node / Diagram Validation Caches
+node_modules/
+.npm/
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo
