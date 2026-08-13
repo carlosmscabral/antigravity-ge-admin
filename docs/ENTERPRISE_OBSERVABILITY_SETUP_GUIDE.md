@@ -64,7 +64,8 @@ flowchart TD
 | **Historical Log Backfill** | **AUTOMATED** | `scripts/backfill_logs.py` | Exports past Cloud Logging records and loads them into BigQuery. |
 | **Native BQ Data Agent Creation** | **MANUAL** | BigQuery Studio UI | Interactive Data Canvas agent creation & A2A card export in GCP Console. |
 | **GCP OAuth 2.0 Credentials** | **MANUAL** | GCP Console (APIs & Services) | Creation of Web Client ID + Secret with Authorized Redirect URIs. |
-| **Gemini Enterprise A2A Import** | **SEMI-AUTOMATED** | `scripts/03_publish_a2a_agent.sh` | Manual UI import or CLI invocation with exported A2A Agent Card URL. |
+| **Gemini Enterprise A2A Import** | **AUTOMATED** | `scripts/03_publish_a2a_agent.sh` | Automated registration of A2A Agent Card via `agents-cli`. |
+| **OAuth Auth Binding in GE Console** | **MANUAL** | Gemini Enterprise UI | Attaching OAuth Client ID & Secret to agent in GE Console settings. |
 
 ---
 
@@ -313,21 +314,15 @@ ORDER BY
 
 ### Step 6.3: Import Agent into Gemini Enterprise App (`cabral-demo-ge`)
 1. Open **Gemini Enterprise Admin Console** -> Select engine `cabral-demo-ge`.
-2. Go to **Agents** -> **Add Agent** -> **Import via A2A Protocol**.
-3. Upload/Paste the A2A Agent Card JSON.
-4. Set Auth:
+2. Go to **Agents** -> Select `Antigravity Observability BQ Data Agent`.
+3. Click **Edit** -> **Authentication**:
    - **Auth Type**: `OAuth 2.0 (Authorization Code)`
-   - **Client ID**: `<YOUR_CLIENT_ID>`
-   - **Client Secret**: `<YOUR_CLIENT_SECRET>`
+   - **Client ID**: `<YOUR_GCP_OAUTH_CLIENT_ID>`
+   - **Client Secret**: `<YOUR_GCP_OAUTH_CLIENT_SECRET>`
    - **Authorization Endpoint**: `https://accounts.google.com/o/oauth2/v2/auth`
    - **Token Endpoint**: `https://oauth2.googleapis.com/token`
    - **Scopes**: `https://www.googleapis.com/auth/cloud-platform`
-5. Click **Save & Enable**.
-
-Alternatively, run via script:
-```bash
-./scripts/03_publish_a2a_agent.sh https://storage.googleapis.com/vibe-cabral-agent-cards/agent-card.json
-```
+4. Click **Save & Enable**.
 
 ---
 
@@ -335,8 +330,8 @@ Alternatively, run via script:
 
 | Symptom / Issue | Cause | Exact Resolution |
 | :--- | :--- | :--- |
+| **HTTP Error 401: Request is missing required authentication credential** | The agent in Gemini Enterprise is missing OAuth 2.0 credentials configuration. | In Gemini Enterprise Admin Console -> Agents -> Select Agent -> Edit -> Authentication, select **OAuth 2.0 (Authorization Code)** and enter Client ID `<YOUR_GCP_OAUTH_CLIENT_ID>` and Secret `<YOUR_GCP_OAUTH_CLIENT_SECRET>` with Scope `https://www.googleapis.com/auth/cloud-platform`. |
 | **BigQuery log table is empty (`0 rows`)** | Missing IAM role on Cloud Logging Sink Writer SA. | Run `gcloud projects add-iam-policy-binding vibe-cabral --member="serviceAccount:service-280799742875@gcp-sa-logging.iam.gserviceaccount.com" --role="roles/bigquery.dataEditor" --condition=None`. |
 | **Existing logs in Cloud Logging not showing in BigQuery** | Sink only streams *new* logs from time of authorization. | Run `python3 scripts/backfill_logs.py` to backfill existing logs. |
-| **Query fails without views** | Golden queries referenced view names instead of base table. | Use the updated Golden Queries in Section 5.2, which run directly on `businessaicode_googleapis_com_inference_response`. |
 | **`Invalid JSON Path` error in BigQuery queries** | Using legacy string syntax `JSON_VALUE(labels, '$.user_id')` on native `JSON` column. | Use native dot notation: `JSON_VALUE(labels.user_id)` or `JSON_VALUE(jsonPayload.experience)`. |
-| **A2A Authentication failed in Gemini Enterprise** | Missing redirect URIs in GCP OAuth Client. | Ensure both `https://vertexaisearch.cloud.google.com/oauth-redirect` and `https://vertexaisearch.cloud.google.com/static/oauth/oauth.html` are added to Authorized Redirect URIs. |
+| **A2A Authentication redirect failed** | Missing redirect URIs in GCP OAuth Client. | Ensure both `https://vertexaisearch.cloud.google.com/oauth-redirect` and `https://vertexaisearch.cloud.google.com/static/oauth/oauth.html` are added to Authorized Redirect URIs in GCP Credentials Console. |
