@@ -6,9 +6,11 @@ if [ -f "$(dirname "$0")/../.env" ]; then
   source "$(dirname "$0")/../.env"
 fi
 
-PROJECT_ID="${PROJECT_ID:-vibe-cabral}"
-PROJECT_NUMBER="${PROJECT_NUMBER:-280799742875}"
-ENGINE_ID="${ENGINE_ID:-cabral-demo-ge_1772569093320}"
+if [ -z "${PROJECT_ID}" ] || [ -z "${PROJECT_NUMBER}" ] || [ -z "${ENGINE_ID}" ]; then
+  echo "ERROR: PROJECT_ID, PROJECT_NUMBER, or ENGINE_ID is missing. Please configure .env."
+  exit 1
+fi
+
 APP_RESOURCE_NAME="projects/${PROJECT_NUMBER}/locations/global/collections/default_collection/engines/${ENGINE_ID}"
 
 echo "=== Registering A2A Agent with Gemini Enterprise App ==="
@@ -18,7 +20,7 @@ echo "----------------------------------------------------"
 
 if [ -z "$1" ]; then
   echo "Usage: $0 <AGENT_CARD_URL_OR_PATH>"
-  echo "Example (GCS Bucket): $0 https://storage.googleapis.com/vibe-cabral-agent-cards/agent-card.json"
+  echo "Example (GCS Bucket): $0 https://storage.googleapis.com/your-bucket/agent-card.json"
   echo "Example (Local File): $0 ./agent-card.json"
   exit 1
 fi

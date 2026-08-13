@@ -7,7 +7,7 @@
 
 ## 1. System Architecture (C4 Container View)
 
-This high-level architecture diagram illustrates the system boundaries, data flow, and components across GCP project **`vibe-cabral`**.
+This high-level architecture diagram illustrates the system boundaries, data flow, and components across GCP project **`<YOUR_PROJECT_ID>`**.
 
 ### 1.1 Architecture Diagram
 
@@ -25,7 +25,7 @@ flowchart TD
         Plugin["Antigravity Extension / SDK"]:::client
     end
 
-    subgraph GCP_Vibe_Cabral["GCP Project: vibe-cabral"]
+    subgraph GCP_Project_Boundary["GCP Project: <YOUR_PROJECT_ID>"]
         BAIC["BAICInstance Endpoint"]:::gcp
         CloudLogging["Cloud Logging<br/>(Sink: antigravity_observability_sink)"]:::gcp
         BQ_Table[("BigQuery Log Table<br/>businessaicode_..._inference_response")]:::gcp
@@ -34,7 +34,7 @@ flowchart TD
     end
 
     subgraph Gemini_Enterprise_Boundary["Gemini Enterprise"]
-        GE_App["Gemini Enterprise App<br/>(cabral-demo-ge)"]:::ge
+        GE_App["Gemini Enterprise App<br/>(<YOUR_ENGINE_ID>)"]:::ge
     end
 
     Dev -->|1. Executes Coding Prompt| Plugin
@@ -61,7 +61,7 @@ flowchart TD
                                    | (1. Inference Request)
                                    v
 +---------------------------------------------------------------------------------------------------+
-| GCP PROJECT: vibe-cabral                                                                          |
+| GCP PROJECT: <YOUR_PROJECT_ID>                                                                    |
 |                                                                                                   |
 |  +-----------------------+      +---------------------------+      +---------------------------+  |
 |  | BAICInstance Endpoint | ---> | Cloud Logging             | ---> | BigQuery Dataset          |  |
@@ -86,7 +86,7 @@ flowchart TD
                                                                                    | (A2A + OAuth2)
 +----------------------------------------------------------------------------------+----------------+
 | GEMINI ENTERPRISE                                                                                 |
-|  [ Platform Admin ] ---> ( Gemini Enterprise App: cabral-demo-ge )                                |
+|  [ Platform Admin ] ---> ( Gemini Enterprise App: <YOUR_ENGINE_ID> )                              |
 +---------------------------------------------------------------------------------------------------+
 ```
 
@@ -98,10 +98,10 @@ flowchart TD
 | :--- | :--- | :--- |
 | **BAICInstance** | `resource.type="businessaicode.googleapis.com/BAICInstance"` | Antigravity AI inference service handling developer prompts. |
 | **Cloud Logging Sink** | `antigravity_observability_sink` | Filtered log exporter routing `InferenceResponseLog` records to BigQuery. |
-| **BigQuery Table** | `vibe-cabral.antigravity_observability.businessaicode_...` | Ingestion table receiving real-time log records from Cloud Logging. |
-| **BigQuery Views** | `vibe-cabral.antigravity_observability.vw_*` | Relational analytics views parsing JSON metadata into structured columns. |
+| **BigQuery Table** | `<YOUR_PROJECT_ID>.antigravity_observability.businessaicode_...` | Ingestion table receiving real-time log records from Cloud Logging. |
+| **BigQuery Views** | `<YOUR_PROJECT_ID>.antigravity_observability.vw_*` | Relational analytics views parsing JSON metadata into structured columns. |
 | **Native BQ Data Agent**| `Antigravity Observability Agent` | BigQuery Studio AI agent equipped with instructions and SQL templates. |
-| **Gemini Enterprise App**| `projects/280799742875/.../engines/cabral-demo-ge_1772569093320` | Primary conversational chat UI for enterprise administrators. |
+| **Gemini Enterprise App**| `projects/<YOUR_PROJECT_NUMBER>/.../engines/<YOUR_ENGINE_ID>` | Primary conversational chat UI for enterprise administrators. |
 
 ---
 
@@ -146,8 +146,8 @@ sequenceDiagram
 2. **Step 2 (Inference Call)**: The Antigravity extension sends an API call to the `BAICInstance` backend endpoint.
 3. **Step 3 (Response Generation)**: The model processes the request and returns code completions or suggestions.
 4. **Step 4 (Log Emission)**: The `BAICInstance` service emits an `InferenceResponseLog` event containing metadata (`user_id`, `trajectory_id`, `model`, `totalTokenCount`).
-5. **Step 5 (Log Export)**: The Cloud Logging sink (`antigravity_observability_sink`) intercepts the log and streams it into the `vibe-cabral.antigravity_observability` BigQuery dataset.
-6. **Step 6 (Query Initiation)**: A Platform Admin asks a question in Gemini Enterprise App `cabral-demo-ge` (e.g., *"Which developer used the most tokens today?"*).
+5. **Step 5 (Log Export)**: The Cloud Logging sink (`antigravity_observability_sink`) intercepts the log and streams it into the `<YOUR_PROJECT_ID>.antigravity_observability` BigQuery dataset.
+6. **Step 6 (Query Initiation)**: A Platform Admin asks a question in Gemini Enterprise App `<YOUR_ENGINE_ID>` (e.g., *"Which developer used the most tokens today?"*).
 7. **Step 7 (A2A Dispatch)**: Gemini Enterprise dispatches the request to the Native BigQuery Data Agent over the A2A (Agent-to-Agent) protocol using OAuth 2.0 credentials.
 8. **Step 8 (SQL Generation & Execution)**: The Data Agent matches the prompt against system instructions and verified SQL templates, then executes a read-only query on `vw_user_token_usage_daily`.
 9. **Step 9 (Data Retrieval & Formatting)**: BigQuery returns the result set, and the Data Agent formats it into clear prose and markdown tables.
@@ -191,7 +191,7 @@ flowchart LR
 RAW LOG PAYLOAD (JSON)                             PARSED BIGQUERY VIEW COLUMNS
 +------------------------------------------+       +------------------------------------------+
 | labels: {                                |       | timestamp       : TIMESTAMP              |
-|   "user_id": "carloscabral@google.com",  | ----> | user_id         : STRING                 |
+|   "user_id": "user@example.com",         | ----> | user_id         : STRING                 |
 |   "trajectory_id": "traj_9a8f7b...",     | ----> | trajectory_id   : STRING (Session ID)    |
 |   "request_id": "req_123456...",         | ----> | request_id      : STRING (Turn ID)       |
 |   "client_name": "VSCode Extension",     | ----> | client_name     : STRING                 |
@@ -241,7 +241,7 @@ sequenceDiagram
 | **Application Type** | Web application |
 | **Client Name** | `Gemini Enterprise - Antigravity BQ Data Agent Connector` |
 | **Authorized Redirect URIs** | `https://vertexaisearch.cloud.google.com/oauth-redirect`<br/>`https://vertexaisearch.cloud.google.com/static/oauth/oauth.html` |
-| **Authorization Endpoint** | `https://accounts.google.com/o/oauth2/v2/auth` |
+| **Authorization Endpoint** | `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&prompt=consent` |
 | **Token Endpoint** | `https://oauth2.googleapis.com/token` |
 | **Required OAuth Scope** | `https://www.googleapis.com/auth/cloud-platform` |
 
@@ -249,26 +249,26 @@ sequenceDiagram
 
 ## 5. Verification & Operational Runbook
 
-To verify that all components in project **`vibe-cabral`** are healthy, run the commands below:
+To verify that all components in your project are healthy, run the commands below:
 
 ### 5.1 Verify Cloud Logging Sink & Dataset
 ```bash
 # Check Cloud Logging Sink status
-gcloud logging sinks describe antigravity_observability_sink --project=vibe-cabral
+gcloud logging sinks describe antigravity_observability_sink --project=${PROJECT_ID}
 
 # Check BigQuery Dataset details
-bq show --project_id=vibe-cabral vibe-cabral:antigravity_observability
+bq show --project_id=${PROJECT_ID} ${PROJECT_ID}:antigravity_observability
 ```
 
 ### 5.2 Test BigQuery Views Execution
 ```bash
 # Run test query on daily token usage view
-bq query --use_legacy_sql=false --project_id=vibe-cabral \
-"SELECT * FROM \`vibe-cabral.antigravity_observability.vw_user_token_usage_daily\` LIMIT 5;"
+bq query --use_legacy_sql=false --project_id=${PROJECT_ID} \
+"SELECT * FROM \`${PROJECT_ID}.antigravity_observability.vw_user_token_usage_daily\` LIMIT 5;"
 ```
 
 ### 5.3 List Registered Gemini Enterprise Apps
 ```bash
-# List Gemini Enterprise engines in vibe-cabral
-agents-cli publish gemini-enterprise --list --project=vibe-cabral
+# List Gemini Enterprise engines in project
+agents-cli publish gemini-enterprise --list --project=${PROJECT_ID}
 ```

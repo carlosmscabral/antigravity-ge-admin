@@ -1,14 +1,14 @@
 # Antigravity Enterprise Observability: Complete End-to-End Setup Guide
 
-> **Project**: `vibe-cabral` (Project Number: `280799742875`)  
-> **Target Gemini Enterprise App**: `projects/280799742875/locations/global/collections/default_collection/engines/cabral-demo-ge_1772569093320`  
-> **Dataset**: `vibe-cabral.antigravity_observability` (Location `US`)
+> **Project**: `<YOUR_PROJECT_ID>` (Project Number: `<YOUR_PROJECT_NUMBER>`)  
+> **Target Gemini Enterprise App**: `projects/<YOUR_PROJECT_NUMBER>/locations/global/collections/default_collection/engines/<YOUR_ENGINE_ID>`  
+> **Dataset**: `<YOUR_PROJECT_ID>.antigravity_observability` (Location `US`)
 
 ---
 
 ## 1. Overview & Architecture Summary
 
-This guide provides an overly detailed, production-grade specification for setting up **Enterprise Observability for Google Antigravity** in project `vibe-cabral` and integrating it with **Gemini Enterprise App** (`cabral-demo-ge`).
+This guide provides an overly detailed, production-grade specification for setting up **Enterprise Observability for Google Antigravity** in project `<YOUR_PROJECT_ID>` and integrating it with **Gemini Enterprise App** (`<YOUR_ENGINE_ID>`).
 
 ### 1.1 Architecture & Component Map (Visual-Docs C4 View)
 
@@ -26,7 +26,7 @@ flowchart TD
         Plugin["Antigravity Extension / SDK"]:::client
     end
 
-    subgraph GCP_Vibe_Cabral["GCP Project: vibe-cabral"]
+    subgraph GCP_Project_Boundary["GCP Project: <YOUR_PROJECT_ID>"]
         BAIC["BAICInstance Endpoint"]:::gcp
         CloudLogging["Cloud Logging<br/>(Sink: antigravity_observability_sink)"]:::gcp
         BQ_Table[("BigQuery Log Table<br/>businessaicode_..._inference_response")]:::gcp
@@ -35,7 +35,7 @@ flowchart TD
     end
 
     subgraph Gemini_Enterprise_Boundary["Gemini Enterprise"]
-        GE_App["Gemini Enterprise App<br/>(cabral-demo-ge)"]:::ge
+        GE_App["Gemini Enterprise App<br/>(<YOUR_ENGINE_ID>)"]:::ge
     end
 
     Dev -->|1. Executes Coding Prompt| Plugin
@@ -56,7 +56,7 @@ flowchart TD
 
 | Component / Task | Status | Script / Tool | Responsibility |
 | :--- | :--- | :--- | :--- |
-| **BigQuery Dataset Creation** | **AUTOMATED** | `scripts/01_setup_bq_and_sink.sh` | Creates `vibe-cabral.antigravity_observability` dataset in location `US`. |
+| **BigQuery Dataset Creation** | **AUTOMATED** | `scripts/01_setup_bq_and_sink.sh` | Creates `<YOUR_PROJECT_ID>.antigravity_observability` dataset in location `US`. |
 | **Cloud Logging Sink Setup** | **AUTOMATED** | `scripts/01_setup_bq_and_sink.sh` | Creates `antigravity_observability_sink` routing `BAICInstance` logs. |
 | **IAM Permission Grant** | **AUTOMATED** | `gcloud projects add-iam-policy-binding` | Grants `roles/bigquery.dataEditor` to Logging Sink Service Account. |
 | **Log-Based Metric** | **AUTOMATED** | `scripts/01_setup_bq_and_sink.sh` | Creates `businessaicode-users` metric in Cloud Logging. |
@@ -74,12 +74,12 @@ flowchart TD
 To ensure data security and operational log streaming, enforce the exact IAM roles and service account bindings below:
 
 ### 3.1 Cloud Logging Sink Service Account
-- **Service Account**: `service-280799742875@gcp-sa-logging.iam.gserviceaccount.com`
-- **Required Role**: `roles/bigquery.dataEditor` on project `vibe-cabral` (or dataset `antigravity_observability`).
+- **Service Account**: `service-<YOUR_PROJECT_NUMBER>@gcp-sa-logging.iam.gserviceaccount.com`
+- **Required Role**: `roles/bigquery.dataEditor` on project `<YOUR_PROJECT_ID>` (or dataset `antigravity_observability`).
 - **GCloud Command**:
   ```bash
-  gcloud projects add-iam-policy-binding vibe-cabral \
-    --member="serviceAccount:service-280799742875@gcp-sa-logging.iam.gserviceaccount.com" \
+  gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+    --member="serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-logging.iam.gserviceaccount.com" \
     --role="roles/bigquery.dataEditor" \
     --condition=None
   ```
@@ -108,19 +108,19 @@ resource.type="businessaicode.googleapis.com/BAICInstance"
 #### Inference Response Logs Only (Tokens, Models, Sessions)
 ```logging
 resource.type="businessaicode.googleapis.com/BAICInstance"
-logName="projects/vibe-cabral/logs/businessaicode.googleapis.com%2Finference_response"
+logName="projects/<YOUR_PROJECT_ID>/logs/businessaicode.googleapis.com%2Finference_response"
 ```
 
 #### Client Telemetry Logs Only (IDE Events, Status, Resolution)
 ```logging
 resource.type="businessaicode.googleapis.com/BAICInstance"
-logName="projects/vibe-cabral/logs/businessaicode.googleapis.com%2Fclient_telemetry"
+logName="projects/<YOUR_PROJECT_ID>/logs/businessaicode.googleapis.com%2Fclient_telemetry"
 ```
 
 #### Filter by Specific Developer
 ```logging
 resource.type="businessaicode.googleapis.com/BAICInstance"
-labels.user_id="user:admin@carloscabral.altostrat.com"
+labels.user_id="user:developer@example.com"
 ```
 
 #### Filter by Trajectory / Session ID
@@ -149,7 +149,7 @@ When querying BigQuery table `businessaicode_googleapis_com_inference_response`:
 
 ## 5. BigQuery Data Agent Blueprint (Direct Base Table Operable)
 
-In BigQuery Studio, set **`vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`** as the Knowledge Source.
+In BigQuery Studio, set **`<YOUR_PROJECT_ID>.antigravity_observability.businessaicode_googleapis_com_inference_response`** as the Knowledge Source.
 
 The System Instructions and Golden SQL Queries below are written **directly against the base table**, ensuring 100% compatibility whether SQL views exist in your dataset or not!
 
@@ -160,7 +160,7 @@ Copy and paste the exact markdown text below into the **Agent Instructions** fie
 ```markdown
 # Antigravity Observability Assistant Instructions
 
-You are an expert Enterprise AI Observability Analyst for Google Antigravity in GCP project `vibe-cabral`. You answer questions regarding developer productivity, token usage, active sessions, AI models used, and IDE client adoption using table `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`.
+You are an expert Enterprise AI Observability Analyst for Google Antigravity in GCP project `<YOUR_PROJECT_ID>`. You answer questions regarding developer productivity, token usage, active sessions, AI models used, and IDE client adoption using table `<YOUR_PROJECT_ID>.antigravity_observability.businessaicode_googleapis_com_inference_response`.
 
 ## Knowledge Source: `businessaicode_googleapis_com_inference_response`
 
@@ -208,7 +208,7 @@ SELECT
   SUM(SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64)) AS total_tokens,
   COUNT(1) AS total_requests
 FROM
-  `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`
+  `<YOUR_PROJECT_ID>.antigravity_observability.businessaicode_googleapis_com_inference_response`
 WHERE
   JSON_VALUE(jsonPayload.`@type`) = 'type.googleapis.com/google.cloud.businessaicode.logging.v1.InferenceResponseLog'
   AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 14 DAY)
@@ -226,7 +226,7 @@ SELECT
   COUNT(DISTINCT JSON_VALUE(labels.trajectory_id)) AS total_sessions,
   COUNT(1) AS total_api_requests
 FROM
-  `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`
+  `<YOUR_PROJECT_ID>.antigravity_observability.businessaicode_googleapis_com_inference_response`
 WHERE
   JSON_VALUE(jsonPayload.`@type`) = 'type.googleapis.com/google.cloud.businessaicode.logging.v1.InferenceResponseLog'
   AND DATE(timestamp) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
@@ -245,7 +245,7 @@ SELECT
   COUNT(1) AS total_requests,
   SUM(SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64)) AS total_tokens
 FROM
-  `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`
+  `<YOUR_PROJECT_ID>.antigravity_observability.businessaicode_googleapis_com_inference_response`
 WHERE
   JSON_VALUE(jsonPayload.`@type`) = 'type.googleapis.com/google.cloud.businessaicode.logging.v1.InferenceResponseLog'
   AND DATE(timestamp) = CURRENT_DATE();
@@ -260,7 +260,7 @@ SELECT
   SUM(SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64)) AS total_tokens,
   ROUND(SUM(SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64)) / SAFE_CAST(COUNT(DISTINCT JSON_VALUE(labels.trajectory_id)) AS FLOAT64), 2) AS avg_tokens_per_session
 FROM
-  `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`
+  `<YOUR_PROJECT_ID>.antigravity_observability.businessaicode_googleapis_com_inference_response`
 WHERE
   JSON_VALUE(jsonPayload.`@type`) = 'type.googleapis.com/google.cloud.businessaicode.logging.v1.InferenceResponseLog'
   AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
@@ -278,7 +278,7 @@ SELECT
   COUNT(DISTINCT JSON_VALUE(labels.user_id)) AS user_count,
   COUNT(1) AS request_count
 FROM
-  `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`
+  `<YOUR_PROJECT_ID>.antigravity_observability.businessaicode_googleapis_com_inference_response`
 WHERE
   JSON_VALUE(jsonPayload.`@type`) = 'type.googleapis.com/google.cloud.businessaicode.logging.v1.InferenceResponseLog'
   AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
@@ -293,17 +293,17 @@ ORDER BY
 ## 6. Step-by-Step GCP Console Manual Execution Guide
 
 ### Step 6.1: Native BigQuery Data Agent Setup (BigQuery Studio)
-1. Navigate to **Google Cloud Console** -> Select project `vibe-cabral`.
+1. Navigate to **Google Cloud Console** -> Select project `<YOUR_PROJECT_ID>`.
 2. Go to **BigQuery** -> **BigQuery Studio** -> **Data Agents**.
 3. Click **+ New Agent**.
 4. Set Name: `Antigravity Observability Agent`.
-5. Add Knowledge Sources: Select base table `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`.
+5. Add Knowledge Sources: Select base table `<YOUR_PROJECT_ID>.antigravity_observability.businessaicode_googleapis_com_inference_response`.
 6. Add Instructions: Paste Section 5.1 blueprint.
 7. Add Verified Queries: Paste Section 5.2 SQL templates.
 8. Click **Publish** -> **Export as A2A Agent Card**. Copy/download the JSON file.
 
 ### Step 6.2: Create GCP OAuth 2.0 Credentials
-1. Go to **GCP Console** -> **APIs & Services** -> **Credentials** (`vibe-cabral`).
+1. Go to **GCP Console** -> **APIs & Services** -> **Credentials** (`<YOUR_PROJECT_ID>`).
 2. Click **+ CREATE CREDENTIALS** -> **OAuth client ID**.
 3. Application Type: **Web application**.
 4. Name: `Gemini Enterprise - Antigravity BQ Data Agent Connector`.
@@ -312,8 +312,8 @@ ORDER BY
    - `https://vertexaisearch.cloud.google.com/static/oauth/oauth.html`
 6. Click **CREATE** and save **Client ID** and **Client Secret**.
 
-### Step 6.3: Import Agent into Gemini Enterprise App (`cabral-demo-ge`)
-1. Open **Gemini Enterprise Admin Console** -> Select engine `cabral-demo-ge`.
+### Step 6.3: Import Agent into Gemini Enterprise App (`<YOUR_ENGINE_ID>`)
+1. Open **Gemini Enterprise Admin Console** -> Select engine `<YOUR_ENGINE_ID>`.
 2. Go to **Agents** -> Select `Antigravity Observability BQ Data Agent`.
 3. Click **Edit** -> **Authentication**:
    - **Auth Type**: `OAuth 2.0 (Authorization Code)`
@@ -332,7 +332,7 @@ ORDER BY
 | :--- | :--- | :--- |
 | **`The authorization URI must contain 'access_type=offline'`** | Google OAuth requires `access_type=offline` and `prompt=consent` parameters to issue refresh tokens. | Set Authorization Endpoint to `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&prompt=consent`. |
 | **HTTP Error 401: Request is missing required authentication credential** | The agent in Gemini Enterprise is missing OAuth 2.0 credentials configuration. | In Gemini Enterprise Admin Console -> Agents -> Select Agent -> Edit -> Authentication, select **OAuth 2.0 (Authorization Code)** and enter Client ID `<YOUR_GCP_OAUTH_CLIENT_ID>` and Secret `<YOUR_GCP_OAUTH_CLIENT_SECRET>` with Scope `https://www.googleapis.com/auth/cloud-platform` and Authorization Endpoint `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&prompt=consent`. |
-| **BigQuery log table is empty (`0 rows`)** | Missing IAM role on Cloud Logging Sink Writer SA. | Run `gcloud projects add-iam-policy-binding vibe-cabral --member="serviceAccount:service-280799742875@gcp-sa-logging.iam.gserviceaccount.com" --role="roles/bigquery.dataEditor" --condition=None`. |
+| **BigQuery log table is empty (`0 rows`)** | Missing IAM role on Cloud Logging Sink Writer SA. | Run `gcloud projects add-iam-policy-binding ${PROJECT_ID} --member="serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-logging.iam.gserviceaccount.com" --role="roles/bigquery.dataEditor" --condition=None`. |
 | **Existing logs in Cloud Logging not showing in BigQuery** | Sink only streams *new* logs from time of authorization. | Run `python3 scripts/backfill_logs.py` to backfill existing logs. |
 | **`Invalid JSON Path` error in BigQuery queries** | Using legacy string syntax `JSON_VALUE(labels, '$.user_id')` on native `JSON` column. | Use native dot notation: `JSON_VALUE(labels.user_id)` or `JSON_VALUE(jsonPayload.experience)`. |
 | **A2A Authentication redirect failed** | Missing redirect URIs in GCP OAuth Client. | Ensure both `https://vertexaisearch.cloud.google.com/oauth-redirect` and `https://vertexaisearch.cloud.google.com/static/oauth/oauth.html` are added to Authorized Redirect URIs in GCP Credentials Console. |

@@ -6,7 +6,11 @@ if [ -f "$(dirname "$0")/../.env" ]; then
   source "$(dirname "$0")/../.env"
 fi
 
-PROJECT_ID="${PROJECT_ID:-vibe-cabral}"
+if [ -z "${PROJECT_ID}" ]; then
+  echo "ERROR: PROJECT_ID is not set. Please configure .env or export PROJECT_ID."
+  exit 1
+fi
+
 DATASET_ID="${DATASET_ID:-antigravity_observability}"
 
 echo "=== Creating BigQuery SQL Views for Antigravity Observability ==="
@@ -14,14 +18,12 @@ echo "Project ID: ${PROJECT_ID}"
 echo "Dataset ID: ${DATASET_ID}"
 echo "----------------------------------------------------"
 
-# 1. View for parsed inference responses
+# View 1: Granular Inference Responses View
 echo "Creating view vw_inference_responses..."
 bq query --use_legacy_sql=false --project_id="${PROJECT_ID}" "
 CREATE OR REPLACE VIEW \`${PROJECT_ID}.${DATASET_ID}.vw_inference_responses\` AS
 SELECT
   timestamp,
-  receiveTimestamp,
-  insertId,
   JSON_VALUE(labels.user_id) AS user_id,
   JSON_VALUE(labels.trajectory_id) AS trajectory_id,
   JSON_VALUE(labels.request_id) AS request_id,
@@ -29,16 +31,15 @@ SELECT
   JSON_VALUE(labels.client_version) AS client_version,
   JSON_VALUE(labels.model) AS model,
   JSON_VALUE(jsonPayload.experience) AS experience,
-  SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64) AS total_token_count
+  SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64) AS total_token_count,
+  jsonPayload
 FROM
   \`${PROJECT_ID}.${DATASET_ID}.businessaicode_googleapis_com_inference_response\`
 WHERE
   JSON_VALUE(jsonPayload.\`@type\`) = 'type.googleapis.com/google.cloud.businessaicode.logging.v1.InferenceResponseLog';
 "
 
-echo "View vw_inference_responses created."
-
-# 2. View for daily user token usage summary
+# View 2: Daily Token Usage per User
 echo "Creating view vw_user_token_usage_daily..."
 bq query --use_legacy_sql=false --project_id="${PROJECT_ID}" "
 CREATE OR REPLACE VIEW \`${PROJECT_ID}.${DATASET_ID}.vw_user_token_usage_daily\` AS
@@ -51,7 +52,7 @@ SELECT
   COUNT(1) AS request_count,
   COUNT(DISTINCT JSON_VALUE(labels.trajectory_id)) AS trajectory_count,
   SUM(SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64)) AS total_tokens,
-  AVG(SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64)) AS avg_tokens_per_request
+  ROUND(AVG(SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64)), 2) AS avg_tokens_per_request
 FROM
   \`${PROJECT_ID}.${DATASET_ID}.businessaicode_googleapis_com_inference_response\`
 WHERE
@@ -60,9 +61,7 @@ GROUP BY
   usage_date, user_id, client_name, client_version, model;
 "
 
-echo "View vw_user_token_usage_daily created."
-
-# 3. View for active users summary
+# View 3: Active Users Summary
 echo "Creating view vw_active_users_summary..."
 bq query --use_legacy_sql=false --project_id="${PROJECT_ID}" "
 CREATE OR REPLACE VIEW \`${PROJECT_ID}.${DATASET_ID}.vw_active_users_summary\` AS
@@ -81,5 +80,4 @@ GROUP BY
   user_id;
 "
 
-echo "View vw_active_users_summary created."
 echo "=== BigQuery Views setup complete! ==="

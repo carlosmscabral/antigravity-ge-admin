@@ -6,7 +6,11 @@ if [ -f "$(dirname "$0")/../.env" ]; then
   source "$(dirname "$0")/../.env"
 fi
 
-PROJECT_ID="${PROJECT_ID:-vibe-cabral}"
+if [ -z "${PROJECT_ID}" ]; then
+  echo "ERROR: PROJECT_ID is not set. Please configure .env or export PROJECT_ID."
+  exit 1
+fi
+
 LOCATION="${LOCATION:-US}"
 DATASET_ID="${DATASET_ID:-antigravity_observability}"
 SINK_NAME="${SINK_NAME:-antigravity_observability_sink}"

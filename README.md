@@ -2,7 +2,7 @@
 
 [![GCP BigQuery](https://img.shields.io/badge/GCP-BigQuery-blue.svg)](https://cloud.google.com/bigquery)
 [![Gemini Enterprise](https://img.shields.io/badge/Gemini-Enterprise-purple.svg)](https://antigravity.google/docs/enterprise)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 An end-to-end, automated enterprise observability implementation for **Google Antigravity** developer telemetry. This repository provides automated log parsing, Cloud Logging sinks, BigQuery storage, analytical views, and integration with **Gemini Enterprise** via a Native BigQuery Data Agent (A2A protocol).
 
@@ -18,7 +18,7 @@ An end-to-end, automated enterprise observability implementation for **Google An
                                    | (1. Inference Request)
                                    v
 +---------------------------------------------------------------------------------------------------+
-| GCP PROJECT: vibe-cabral                                                                          |
+| GCP PROJECT: <YOUR_PROJECT_ID>                                                                    |
 |                                                                                                   |
 |  +-----------------------+      +---------------------------+      +---------------------------+  |
 |  | BAICInstance Endpoint | ---> | Cloud Logging             | ---> | BigQuery Dataset          |  |
@@ -43,7 +43,7 @@ An end-to-end, automated enterprise observability implementation for **Google An
                                                                                    | (A2A + OAuth2)
 +----------------------------------------------------------------------------------+----------------+
 | GEMINI ENTERPRISE                                                                                 |
-|  [ Platform Admin ] ---> ( Gemini Enterprise App: cabral-demo-ge )                                |
+|  [ Platform Admin ] ---> ( Gemini Enterprise App: <YOUR_ENGINE_ID> )                              |
 +---------------------------------------------------------------------------------------------------+
 ```
 
@@ -112,4 +112,11 @@ This script automatically:
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## ⚠️ Disclaimer
+
+This is not an official Google product.
+
