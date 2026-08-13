@@ -30,7 +30,7 @@ flowchart TD
         BAIC["BAICInstance Endpoint"]:::gcp
         CloudLogging["Cloud Logging<br/>(Sink: antigravity_observability_sink)"]:::gcp
         BQ_Table[("BigQuery Log Table<br/>businessaicode_..._inference_response")]:::gcp
-        BQ_Views[("BigQuery Views<br/>vw_inference_responses<br/>vw_user_token_usage_daily<br/>vw_active_users_summary")]:::gcp
+        BQ_Views[("BigQuery Views (Optional)<br/>vw_inference_responses<br/>vw_user_token_usage_daily<br/>vw_active_users_summary")]:::gcp
         BQ_Agent["Native BigQuery Data Agent<br/>(BigQuery Studio / Data Canvas)"]:::gcp
     end
 
@@ -43,7 +43,7 @@ flowchart TD
     BAIC -->|3. Emits InferenceResponseLog| CloudLogging
     CloudLogging -->|4. Real-time Log Stream| BQ_Table
     BQ_Table -->|5. Analytical Queries| BQ_Views
-    BQ_Views -->|6. Knowledge Source| BQ_Agent
+    BQ_Table -->|6. Knowledge Source| BQ_Agent
     Admin -->|7. Ask Observability Question| GE_App
     GE_App <-->|8. A2A Protocol / OAuth 2.0| BQ_Agent
 
@@ -146,10 +146,11 @@ When querying BigQuery table `businessaicode_googleapis_com_inference_response`:
 
 ---
 
-## 5. BigQuery Data Agent Blueprint (BigQuery Studio)
+## 5. BigQuery Data Agent Blueprint (Direct Base Table Operable)
 
-> **Knowledge Source Selection Note**: In BigQuery Studio, select **`vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`** (Base Table) and/or views `vw_user_token_usage_daily`, `vw_inference_responses`, `vw_active_users_summary`.  
-> If the UI picker limits selection to standard tables, select base table `businessaicode_googleapis_com_inference_response`. The Agent instructions and golden queries below instruct the model on how to query both base tables and SQL views seamlessly.
+In BigQuery Studio, set **`vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`** as the Knowledge Source.
+
+The System Instructions and Golden SQL Queries below are written **directly against the base table**, ensuring 100% compatibility whether SQL views exist in your dataset or not!
 
 ### 5.1 System Instructions Blueprint
 
@@ -158,52 +159,58 @@ Copy and paste the exact markdown text below into the **Agent Instructions** fie
 ```markdown
 # Antigravity Observability Assistant Instructions
 
-You are an expert Enterprise AI Observability Analyst for Google Antigravity in GCP project `vibe-cabral`. You answer questions regarding developer productivity, token usage, active sessions, AI models used, and IDE client adoption using dataset `vibe-cabral.antigravity_observability`.
+You are an expert Enterprise AI Observability Analyst for Google Antigravity in GCP project `vibe-cabral`. You answer questions regarding developer productivity, token usage, active sessions, AI models used, and IDE client adoption using table `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`.
 
-## Key Knowledge Sources & Tables/Views
+## Knowledge Source: `businessaicode_googleapis_com_inference_response`
 
-1. Base Table: `businessaicode_googleapis_com_inference_response`
-   - Contains raw JSON logs. Use dot notation for JSON extraction:
-     `JSON_VALUE(labels.user_id)`, `JSON_VALUE(labels.trajectory_id)`, `JSON_VALUE(labels.model)`, `JSON_VALUE(jsonPayload.experience)`, `SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64)`.
-2. `vw_inference_responses`: Granular record of every Antigravity inference request.
-   - Key Columns: `timestamp`, `user_id`, `trajectory_id`, `request_id`, `client_name`, `client_version`, `model`, `experience`, `total_token_count`.
-3. `vw_user_token_usage_daily`: Pre-aggregated daily token usage and request counts per user, model, and client.
-   - Key Columns: `usage_date`, `user_id`, `client_name`, `client_version`, `model`, `request_count`, `trajectory_count`, `total_tokens`, `avg_tokens_per_request`.
-4. `vw_active_users_summary`: Overview of user activity, first/last seen timestamps, session counts, and total token usage.
-   - Key Columns: `user_id`, `total_sessions`, `total_requests`, `total_token_consumption`, `first_seen`, `last_seen`.
+The table contains native BigQuery `JSON` columns `labels` and `jsonPayload`.
+Always use BigQuery JSON dot notation for field extraction:
+- User Email / ID -> `JSON_VALUE(labels.user_id)`
+- Trajectory / Session ID -> `JSON_VALUE(labels.trajectory_id)`
+- Request ID -> `JSON_VALUE(labels.request_id)`
+- Client Name -> `JSON_VALUE(labels.client_name)`
+- Client Version -> `JSON_VALUE(labels.client_version)`
+- AI Model Name -> `JSON_VALUE(labels.model)`
+- Experience / Surface -> `JSON_VALUE(jsonPayload.experience)`
+- Total Token Count -> `SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64)`
+
+## Log Record Filter
+Always filter inference response records using:
+`JSON_VALUE(jsonPayload.\`@type\`) = 'type.googleapis.com/google.cloud.businessaicode.logging.v1.InferenceResponseLog'`
 
 ## Business Terms Glossary
 
-- "Developer" / "User" -> `user_id`
-- "Session" / "Trajectory" -> `trajectory_id` / `COUNT(DISTINCT trajectory_id)`
+- "Developer" / "User" -> `JSON_VALUE(labels.user_id)`
+- "Session" / "Trajectory" -> `JSON_VALUE(labels.trajectory_id)` / `COUNT(DISTINCT JSON_VALUE(labels.trajectory_id))`
 - "API Call" / "Request" -> `COUNT(1)`
-- "Tokens" / "Token Consumption" -> `SUM(total_tokens)` or `SUM(total_token_count)`
-- "Surface" / "Experience" -> `experience` (e.g., CHAT, INLINE_COMPLETION)
+- "Tokens" / "Token Consumption" -> `SUM(SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64))`
+- "Surface" / "Experience" -> `JSON_VALUE(jsonPayload.experience)`
 
 ## Default Filtering & Performance Rules
 
-- Unless specified otherwise, limit queries to the last 7 days (`usage_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)` or `timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)`).
+- Unless specified otherwise, limit queries to the last 7 days (`timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)`).
 - Never issue `DROP`, `INSERT`, `UPDATE`, or `DELETE` statements. Return only read-only `SELECT` queries.
 - Format token numbers clearly (e.g., using commas or displaying in thousands/millions `K`/`M`).
 ```
 
 ---
 
-### 5.2 Golden Verified SQL Queries
+### 5.2 Golden Verified SQL Queries (Base Table Compatible)
 
 Add these 5 empirically tested queries into the **Verified Queries / Examples** section:
 
 #### Query 1: Daily Token Usage Trend
 ```sql
 SELECT
-  usage_date,
-  model,
-  SUM(total_tokens) AS total_tokens,
-  SUM(request_count) AS total_requests
+  DATE(timestamp) AS usage_date,
+  JSON_VALUE(labels.model) AS model,
+  SUM(SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64)) AS total_tokens,
+  COUNT(1) AS total_requests
 FROM
-  `vibe-cabral.antigravity_observability.vw_user_token_usage_daily`
+  `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`
 WHERE
-  usage_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 14 DAY)
+  JSON_VALUE(jsonPayload.`@type`) = 'type.googleapis.com/google.cloud.businessaicode.logging.v1.InferenceResponseLog'
+  AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 14 DAY)
 GROUP BY
   usage_date, model
 ORDER BY
@@ -213,14 +220,15 @@ ORDER BY
 #### Query 2: Top 10 Developers by Token Usage
 ```sql
 SELECT
-  user_id,
-  SUM(total_tokens) AS total_tokens_consumed,
-  SUM(trajectory_count) AS total_sessions,
-  SUM(request_count) AS total_api_requests
+  JSON_VALUE(labels.user_id) AS user_id,
+  SUM(SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64)) AS total_tokens_consumed,
+  COUNT(DISTINCT JSON_VALUE(labels.trajectory_id)) AS total_sessions,
+  COUNT(1) AS total_api_requests
 FROM
-  `vibe-cabral.antigravity_observability.vw_user_token_usage_daily`
+  `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`
 WHERE
-  usage_date >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+  JSON_VALUE(jsonPayload.`@type`) = 'type.googleapis.com/google.cloud.businessaicode.logging.v1.InferenceResponseLog'
+  AND DATE(timestamp) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
 GROUP BY
   user_id
 ORDER BY
@@ -228,17 +236,18 @@ ORDER BY
 LIMIT 10;
 ```
 
-#### Query 3: Active User Count & Session Volume
+#### Query 3: Active User Count & Session Volume Today
 ```sql
 SELECT
-  COUNT(DISTINCT user_id) AS active_developers,
-  SUM(trajectory_count) AS total_sessions,
-  SUM(request_count) AS total_requests,
-  SUM(total_tokens) AS total_tokens
+  COUNT(DISTINCT JSON_VALUE(labels.user_id)) AS active_developers,
+  COUNT(DISTINCT JSON_VALUE(labels.trajectory_id)) AS total_sessions,
+  COUNT(1) AS total_requests,
+  SUM(SAFE_CAST(JSON_VALUE(jsonPayload.metadata.totalTokenCount) AS INT64)) AS total_tokens
 FROM
-  `vibe-cabral.antigravity_observability.vw_user_token_usage_daily`
+  `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`
 WHERE
-  usage_date = CURRENT_DATE();
+  JSON_VALUE(jsonPayload.`@type`) = 'type.googleapis.com/google.cloud.businessaicode.logging.v1.InferenceResponseLog'
+  AND DATE(timestamp) = CURRENT_DATE();
 ```
 
 #### Query 4: Average Tokens per Session Trajectory
@@ -252,7 +261,8 @@ SELECT
 FROM
   `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`
 WHERE
-  timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+  JSON_VALUE(jsonPayload.`@type`) = 'type.googleapis.com/google.cloud.businessaicode.logging.v1.InferenceResponseLog'
+  AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
 GROUP BY
   model
 ORDER BY
@@ -269,7 +279,8 @@ SELECT
 FROM
   `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`
 WHERE
-  timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+  JSON_VALUE(jsonPayload.`@type`) = 'type.googleapis.com/google.cloud.businessaicode.logging.v1.InferenceResponseLog'
+  AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
 GROUP BY
   client_name, client_version
 ORDER BY
@@ -285,7 +296,7 @@ ORDER BY
 2. Go to **BigQuery** -> **BigQuery Studio** -> **Data Agents**.
 3. Click **+ New Agent**.
 4. Set Name: `Antigravity Observability Agent`.
-5. Add Knowledge Sources: Select base table `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response` (and views `vw_inference_responses`, `vw_user_token_usage_daily`, `vw_active_users_summary` if displayed).
+5. Add Knowledge Sources: Select base table `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response`.
 6. Add Instructions: Paste Section 5.1 blueprint.
 7. Add Verified Queries: Paste Section 5.2 SQL templates.
 8. Click **Publish** -> **Export as A2A Agent Card**. Copy/download the JSON file.
@@ -326,6 +337,6 @@ Alternatively, run via script:
 | :--- | :--- | :--- |
 | **BigQuery log table is empty (`0 rows`)** | Missing IAM role on Cloud Logging Sink Writer SA. | Run `gcloud projects add-iam-policy-binding vibe-cabral --member="serviceAccount:service-280799742875@gcp-sa-logging.iam.gserviceaccount.com" --role="roles/bigquery.dataEditor" --condition=None`. |
 | **Existing logs in Cloud Logging not showing in BigQuery** | Sink only streams *new* logs from time of authorization. | Run `python3 scripts/backfill_logs.py` to backfill existing logs. |
-| **Cannot select Views in Data Agent source picker** | BigQuery Studio UI source selector filters by standard tables (`TABLE`). | Select the base table `vibe-cabral.antigravity_observability.businessaicode_googleapis_com_inference_response` as the knowledge source. The System Instructions and Verified Queries will handle both table and view SQL generation seamlessly. |
+| **Query fails without views** | Golden queries referenced view names instead of base table. | Use the updated Golden Queries in Section 5.2, which run directly on `businessaicode_googleapis_com_inference_response`. |
 | **`Invalid JSON Path` error in BigQuery queries** | Using legacy string syntax `JSON_VALUE(labels, '$.user_id')` on native `JSON` column. | Use native dot notation: `JSON_VALUE(labels.user_id)` or `JSON_VALUE(jsonPayload.experience)`. |
 | **A2A Authentication failed in Gemini Enterprise** | Missing redirect URIs in GCP OAuth Client. | Ensure both `https://vertexaisearch.cloud.google.com/oauth-redirect` and `https://vertexaisearch.cloud.google.com/static/oauth/oauth.html` are added to Authorized Redirect URIs. |
